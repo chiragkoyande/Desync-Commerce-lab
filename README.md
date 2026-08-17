@@ -1,109 +1,198 @@
 # Desync Commerce
 
-> A local, Dockerized HTTP Request Smuggling mini-CTF built around a realistic ecommerce experience.
+Desync Commerce is a beginner-friendly, local HTTP Request Smuggling mini-CTF. It looks like an ecommerce website, but its frontend proxy and backend intentionally disagree about HTTP/1.1 request boundaries.
 
-Desync Commerce presents a normal premium storefront backed by an intentionally mismatched HTTP/1.1 proxy and backend. The five-lesson series teaches request boundaries, persistent connections, `Content-Length`, `Transfer-Encoding`, desynchronization, telemetry, and remediation.
+The project is designed for learning with Docker and Burp Suite. It does not contact external systems and does not contain real accounts, credentials, or sensitive data.
 
-Everything runs on localhost. There are no real accounts, credentials, external targets, scanners, or destructive actions.
+## What You Will Learn
 
-## What You Build
+- How a browser, proxy, and backend communicate
+- HTTP/1.1 persistent connections
+- `Content-Length`
+- `Transfer-Encoding: chunked`
+- Request boundary disagreement
+- CL.TE and TE.CL concepts
+- CL.0 behavior
+- HTTP/2 downgrade concepts
+- Backend telemetry
+- Basic remediation
+
+## Architecture
 
 ```text
 Browser / Burp Suite
         |
         v
-Next.js storefront :3000
+Next.js ecommerce website :3000
         |
         v
-Teaching proxy :8080  ------>  Private backend :9000
+Vulnerable teaching proxy :8080
         |
-        +-- Patched proxy :8081
+        v
+Private backend API :9000
+
+Patched teaching proxy :8081
 ```
 
-The vulnerable teaching proxy forwards persistent HTTP/1.1 connections while the backend consumes `Transfer-Encoding: chunked`. The front-end security decision and backend request boundary can therefore disagree. The patched proxy rejects ambiguous framing before forwarding it.
+The backend port is private to Docker. Burp sends challenge traffic to the vulnerable proxy on port `8080`.
 
-## Highlights
+## Project Requirements
 
-- Production-inspired ecommerce storefront called **Desync Commerce**
-- Next.js, TypeScript, Tailwind CSS, and local product artwork
-- Separate frontend proxy and private backend containers
-- Burp Suite Repeater-compatible local target
-- Five progressive HTTP desynchronization challenges
-- Per-challenge progress, flags, hints, and reset controls
-- Live backend parser telemetry and connection state
-- Vulnerable versus patched proxy comparison
-- Backend-only flag release after the intended condition
-- No flag values in frontend source, HTML, or client bundle
-- Separate author solution in `SOLUTION.md`
+Install these before starting:
 
-## Challenge Series
-
-Open:
-
-```text
-http://localhost:3000/challenge
-```
-
-| # | Lesson | Focus |
-|---|---|---|
-| 01 | Find the Boundary | Request boundary calculation |
-| 02 | CL.TE | Frontend length versus backend transfer coding |
-| 03 | TE.CL | Reverse framing disagreement |
-| 04 | CL.0 | Zero-length body on a reused connection |
-| 05 | HTTP/2 Downgrade | Controlled HTTP/2-to-HTTP/1.1 translation model |
-
-Each lesson releases its flag only after the matching backend challenge condition succeeds.
-
-## Requirements
-
-- Docker Engine
+- Docker Desktop or Docker Engine
 - Docker Compose
 - Burp Suite Community or Professional, optional
 - Python 3.10+, optional for local replay helpers
 
-## Start the Lab
+Check Docker installation:
 
-From the repository root:
+```bash
+docker --version
+docker compose version
+```
+
+If both commands print version information, Docker is ready.
+
+## Download the Project
+
+```bash
+git clone https://github.com/chiragkoyande/Desync-Commerce-lab.git
+cd Desync-Commerce-lab
+```
+
+If you already have the project, only run:
+
+```bash
+cd "/home/chiragk/cyber projects/DesyncLab"
+```
+
+## First Startup
+
+Build and start every container:
 
 ```bash
 docker compose up --build
 ```
 
-Open the storefront:
+The first build may take a few minutes because the Next.js dependencies are installed inside Docker.
 
-```text
-http://localhost:3000
-```
+Keep this terminal open. Open a second terminal for other commands.
 
-Open the CTF page:
-
-```text
-http://localhost:3000/challenge
-```
-
-Check service status:
+Check that everything is running:
 
 ```bash
 docker compose ps
 ```
 
-## Burp Suite Workflow
+You should see four services:
 
-The lab proxy owns port `8080`. Do not start Burp's own listener on `8080`.
+```text
+backend
+frontend
+frontend-proxy
+patched-proxy
+```
 
-1. Open Burp Suite and go to **Repeater**.
-2. Set the Repeater target to `http://localhost:8080`.
+## Open the Website
+
+Normal ecommerce storefront:
+
+```text
+http://localhost:3000
+```
+
+CTF challenge page:
+
+```text
+http://localhost:3000/challenge
+```
+
+The storefront is intentionally designed to look like a normal commerce website. The security training content is on `/challenge`.
+
+## Ports
+
+| Port | Purpose |
+|---|---|
+| `3000` | Next.js storefront and challenge page |
+| `8080` | Vulnerable teaching proxy and Burp target |
+| `8081` | Patched teaching proxy |
+| `9000` | Backend inside Docker; not published to the host |
+
+## Challenge Series
+
+Open `http://localhost:3000/challenge` and complete the five lessons in order:
+
+```text
+01 — Find the Boundary
+02 — CL.TE
+03 — TE.CL
+04 — CL.0
+05 — HTTP/2 Downgrade
+```
+
+Each lesson has:
+
+- A short explanation
+- Progressive hints
+- A local replay command
+- Backend telemetry
+- A separate completion state
+
+After a lesson is solved, the page shows an unlocked item. After a challenge is solved, the ecommerce storefront also shows an updated fulfillment state.
+
+## Burp Suite Setup
+
+Burp must not use port `8080` for its own listener because the lab proxy already owns that port.
+
+### Configure a Burp listener
+
+1. Open Burp Suite.
+2. Go to **Proxy → Proxy settings**.
+3. Create or edit a Burp listener.
+4. Use:
+
+   ```text
+   Address: 127.0.0.1
+   Port: 8082
+   ```
+
+### Use Repeater
+
+For the simplest workflow, use Burp Repeater directly:
+
+1. Open **Repeater**.
+2. Set the target to:
+
+   ```text
+   http://localhost:8080
+   ```
+
 3. Use HTTP/1.1.
-4. Disable automatic `Content-Length` updates.
-5. Start with the normal protected-route request shown on `/challenge`.
-6. Work through the progressive hints.
-7. Refresh `/challenge` after each successful lesson.
+4. Do not use HTTPS.
+5. Disable automatic `Content-Length` updates when working with framing lessons.
+6. Start with the normal request shown on the challenge page.
+7. Use the progressive hints to understand the lesson.
 
-If you use Burp's browser proxy listener, put that listener on another free port such as `127.0.0.1:8082`. The application UI remains on `localhost:3000`; the controlled request target is `localhost:8080`.
+The lab UI runs on port `3000`. Burp challenge traffic goes to port `8080`.
+
+## Beginner Workflow
+
+1. Open the storefront at `http://localhost:3000`.
+2. Add a product to the cart.
+3. Open `http://localhost:3000/challenge`.
+4. Read Lesson 01 before sending any special request.
+5. In Burp Repeater, send the normal protected-route request shown on the page.
+6. Confirm that the frontend returns `403 Forbidden`.
+7. Unlock hints one at a time.
+8. Send the controlled lesson request through `http://localhost:8080`.
+9. Refresh the challenge page.
+10. Watch the item count change from `0 items unlocked` to `1 item unlocked`.
+11. Continue with the next lesson.
 
 ## Local Replay Helpers
 
-These helpers are restricted to `127.0.0.1:8080` and are provided for repeatable lab verification:
+Burp is the recommended learning tool. The following helpers are optional and are restricted to the local lab proxy:
 
 ```bash
 python3 labs/series.py --challenge boundary
@@ -113,17 +202,17 @@ python3 labs/series.py --challenge cl-zero
 python3 labs/series.py --challenge h2-downgrade
 ```
 
-They are optional. The intended learning workflow is to inspect and reproduce the behavior with Burp Suite.
+These commands are useful for checking that Docker is working, but use Burp when recording or learning the request flow.
 
 ## Monitoring
 
-The challenge page includes a local HTTP desync monitor. For raw backend telemetry:
+The challenge page contains a live monitor. You can also view backend logs in a second terminal:
 
 ```bash
 docker compose logs -f backend
 ```
 
-Useful events include:
+Important log messages include:
 
 ```text
 Request boundary calculated
@@ -132,83 +221,140 @@ Backend processed secondary request
 FLAG RELEASED
 ```
 
-The monitor is designed to show the frontend/backend interpretation difference without displaying the solution payload in the public storefront.
+## Reset the Challenge
 
-## Patched Mode
+### Reset only challenge progress
 
-Compare the vulnerable proxy with:
-
-```text
-http://localhost:8081
-```
-
-The patched proxy rejects conflicting `Content-Length` and `Transfer-Encoding` framing with `400 Bad Request`. This demonstrates the intended defensive rule:
-
-```text
-Vulnerable: frontend parser != backend parser -> desync possible
-Patched:    ambiguous framing rejected        -> no backend forwarding
-```
-
-## Reset
-
-Use **Reset series** on the challenge page, or run:
+Run:
 
 ```bash
 curl http://localhost:8080/api/reset
 ```
 
-Restart everything from scratch:
+Then refresh:
+
+```text
+http://localhost:3000/challenge
+```
+
+The page should show:
+
+```text
+0/5
+0 items unlocked
+```
+
+### Restart the backend
+
+```bash
+docker compose restart backend
+```
+
+### Full restart
 
 ```bash
 docker compose down
 docker compose up --build
 ```
 
-## Project Layout
+## Patched Proxy
+
+Repeat a lesson against:
 
 ```text
-.
-├── backend/
-│   ├── Dockerfile
-│   └── server.py
-├── frontend/
-│   ├── app/
-│   ├── public/products/
-│   ├── Dockerfile
-│   └── package.json
-├── proxy/
-│   ├── Dockerfile
-│   └── proxy.py
-├── labs/
-│   └── series.py
-├── docs/
-│   └── architecture.md
-├── docker-compose.yml
-├── README.md
-└── SOLUTION.md
+http://localhost:8081
 ```
 
-## Learning Objectives
+The patched proxy rejects ambiguous framing with:
 
-- Understand HTTP/1.1 persistent connection reuse
-- Compare `Content-Length` and `Transfer-Encoding`
-- Reason about request boundaries at the byte level
-- Observe frontend authorization checks versus backend interpretation
-- Reproduce CL.TE-style desynchronization locally
-- Understand CL.0 and downgrade translation risks
-- Use telemetry to explain parser disagreement
-- Apply framing normalization and rejection as remediation
+```text
+HTTP/1.1 400 Bad Request
+```
 
-## Safety Boundary
+Comparison:
 
-This repository contains intentionally vulnerable teaching code. Use it only on your own machine or an isolated Docker network. Never point the replay helpers or Burp requests at public websites or systems you do not own.
+```text
+Vulnerable:
+Frontend parser != Backend parser
+                |
+          Desync possible
 
-The project deliberately excludes SQL injection, XSS, SSRF, command injection, path traversal, IDOR, insecure JWTs, real authentication data, credential capture, and arbitrary-target proxying.
+Patched:
+Ambiguous framing rejected
+                |
+          No forwarding
+```
 
-## Author Notes
+## Troubleshooting
 
-The intended solution, parser reasoning, and remediation details are in `SOLUTION.md`. Keep that file private when using this repository as a player-facing CTF.
+### Port already in use
 
-## Credits
+Check which containers are running:
 
-Created as an educational HTTP security lab and mini-CTF series. The project is designed for demonstrations, Burp Suite practice, and security learning in a controlled local environment.
+```bash
+docker compose ps
+```
+
+Stop old DesyncLab containers:
+
+```bash
+docker compose down --remove-orphans
+```
+
+Then start again:
+
+```bash
+docker compose up --build
+```
+
+Do not run Burp's listener on port `8080`.
+
+### Website shows an old page
+
+Hard refresh the browser:
+
+```text
+Ctrl + Shift + R
+```
+
+### Challenge stays at zero
+
+Check the state API:
+
+```bash
+curl http://localhost:8080/api/state
+```
+
+Check backend logs:
+
+```bash
+docker compose logs --tail=100 backend
+```
+
+Make sure Burp is targeting `http://localhost:8080`, not `https://localhost:8080`.
+
+### Burp shows only the first response
+
+Refresh the challenge page and check the monitor. The backend may process the secondary request even when Burp displays the first response separately.
+
+## Stop the Lab
+
+```bash
+docker compose down
+```
+
+To remove unused Docker resources created by this project:
+
+```bash
+docker compose down --remove-orphans
+```
+
+## Learning Scope
+
+This project intentionally focuses only on HTTP request smuggling and desynchronization. It does not intentionally include SQL injection, XSS, SSRF, command injection, path traversal, IDOR, insecure JWTs, credential capture, arbitrary proxying, or external target support.
+
+Use the lab only on your own machine and isolated Docker network.
+
+## Author Documentation
+
+`SOLUTION.md` contains the intended parser analysis, challenge conditions, and remediation. Keep it private when using the repository as a player-facing CTF.
