@@ -1,0 +1,29 @@
+services:
+  frontend:
+    build: ./frontend
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_LAB_PROXY: http://localhost:8080
+    depends_on: [frontend-proxy]
+
+  frontend-proxy:
+    build: ./proxy
+    environment:
+      PROXY_MODE: vulnerable
+    ports: ["8080:80"]
+    depends_on: [backend]
+
+  patched-proxy:
+    build: ./proxy
+    environment:
+      PROXY_MODE: fixed
+    ports: ["8081:80"]
+    depends_on: [backend]
+
+  backend:
+    build: ./backend
+    expose: ["9000"]
+
+networks:
+  default:
+    name: desync-commerce-lab
