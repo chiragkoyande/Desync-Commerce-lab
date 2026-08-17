@@ -75,7 +75,7 @@ cd Desync-Commerce-lab
 If you already cloned it, enter your existing directory instead:
 
 ```bash
-cd "/home/chiragk/cyber projects/DesyncLab"
+cd "/home/user/downloads/DesyncLab"
 ```
 
 ### 3. Build the Docker images
