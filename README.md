@@ -40,52 +40,79 @@ The backend port is private to Docker. Burp sends challenge traffic to the vulne
 
 Install these before starting:
 
-- Docker Desktop or Docker Engine
-- Docker Compose
+- Git, for cloning the repository
+- Docker Engine or Docker Desktop
+- Docker Compose v2
 - Burp Suite Community or Professional, optional
 - Python 3.10+, optional for local replay helpers
 
-Check Docker installation:
+You do **not** need to install Node.js, npm, Next.js, Tailwind, or Python packages on the host. Docker installs the application dependencies inside the containers.
+
+Check the required tools:
 
 ```bash
+git --version
 docker --version
 docker compose version
 ```
 
-If both commands print version information, Docker is ready.
+If these commands print version information, the machine is ready.
 
-## Download the Project
+## Complete First-Time Setup
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/chiragkoyande/Desync-Commerce-lab.git
+```
+
+### 2. Enter the project
+
+```bash
 cd Desync-Commerce-lab
 ```
 
-If you already have the project, only run:
+If you already cloned it, enter your existing directory instead:
 
 ```bash
 cd "/home/chiragk/cyber projects/DesyncLab"
 ```
 
-## First Startup
-
-Build and start every container:
+### 3. Build the Docker images
 
 ```bash
-docker compose up --build
+docker compose build
 ```
 
-The first build may take a few minutes because the Next.js dependencies are installed inside Docker.
+During the first build Docker downloads:
 
-Keep this terminal open. Open a second terminal for other commands.
+- `node:22-alpine` for Next.js
+- `python:3.12-alpine` for the proxy and backend
+- Next.js, React, TypeScript, Tailwind, and icon packages from `frontend/package-lock.json`
 
-Check that everything is running:
+The frontend dependency installation happens inside the Docker image. Do not run `npm install` in the repository root.
+
+The first build may take several minutes. Later builds use Docker's cache.
+
+### 4. Start every container
+
+```bash
+docker compose up -d
+```
+
+To run in the foreground and watch startup output instead:
+
+```bash
+docker compose up
+```
+
+### 5. Check that everything is running
 
 ```bash
 docker compose ps
 ```
 
-You should see four services:
+You should see four services with an `Up` status:
 
 ```text
 backend
@@ -93,6 +120,15 @@ frontend
 frontend-proxy
 patched-proxy
 ```
+
+Verify the two main HTTP entry points:
+
+```bash
+curl -I http://localhost:3000
+curl -I http://localhost:8080
+```
+
+Both commands should return an HTTP response.
 
 ## Open the Website
 
@@ -109,6 +145,35 @@ http://localhost:3000/challenge
 ```
 
 The storefront is intentionally designed to look like a normal commerce website. The security training content is on `/challenge`.
+
+If the browser was already open, use a hard refresh:
+
+```text
+Ctrl + Shift + R
+```
+
+### 6. Use a second terminal
+
+Keep Docker running in the first terminal. Use another terminal for Burp, logs, and challenge commands:
+
+```bash
+cd Desync-Commerce-lab
+docker compose logs -f backend
+```
+
+After the first successful build, the lab can start without downloading dependencies again:
+
+```bash
+docker compose up -d
+```
+
+If source or dependency files change, rebuild:
+
+```bash
+docker compose up -d --build
+```
+
+A completely new machine needs internet access for the initial Docker images and npm package downloads. Once those layers are cached, normal restarts work offline.
 
 ## Ports
 
